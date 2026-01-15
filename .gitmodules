@@ -1,0 +1,30 @@
+[submodule "plugins/holepunch"]
+	path = plugins/holepunch
+	url = https://github.com/grandcamel/holepunch-plugin.git
+[submodule "plugins/jira-assistant-skills"]
+	path = plugins/jira-assistant-skills
+	url = https://github.com/grandcamel/JIRA-Assistant-Skills.git
+[submodule "plugins/confluence-assistant-skills"]
+	path = plugins/confluence-assistant-skills
+	url = https://github.com/grandcamel/Confluence-Assistant-Skills.git
+[submodule "plugins/splunk-assistant-skills"]
+	path = plugins/splunk-assistant-skills
+	url = https://github.com/grandcamel/Splunk-Assistant-Skills.git
+[submodule "plugins/assistant-skills"]
+	path = plugins/assistant-skills
+	url = https://github.com/grandcamel/Assistant-Skills.git
+[submodule "plugins/best-practices"]
+	path = plugins/best-practices
+	url = https://github.com/grandcamel/best-practices-plugin.git
+[submodule "plugins/apds-dev"]
+	path = plugins/apds-dev
+	url = https://github.com/grandcamel/apds-plugin.git
+[submodule "plugins/anproto"]
+	path = plugins/anproto
+	url = https://github.com/grandcamel/anproto-plugin.git
+[submodule "plugins/pearpass"]
+	path = plugins/pearpass
+	url = https://github.com/grandcamel/pearpass-plugin.git
+[submodule "plugins/wiredove"]
+	path = plugins/wiredove
+	url = https://github.com/grandcamel/wiredove-plugin.git

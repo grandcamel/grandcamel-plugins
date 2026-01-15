@@ -11,5 +11,86 @@
     "repository": "https://github.com/grandcamel/grandcamel-plugins",
     "license": "MIT"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "holepunch",
+      "source": "./plugins/holepunch/plugins/holepunch",
+      "description": "Build zero-infrastructure P2P applications with Holepunch ecosystem (Pear, Hypercore, Hyperswarm)",
+      "version": "1.1.0",
+      "category": "development",
+      "keywords": ["p2p", "holepunch", "pear", "hypercore", "hyperswarm"]
+    },
+    {
+      "name": "jira-assistant-skills",
+      "source": "./plugins/jira-assistant-skills/plugins/jira-assistant-skills",
+      "description": "18 specialized skills for JIRA automation with natural language",
+      "version": "4.0.0",
+      "category": "productivity",
+      "keywords": ["jira", "atlassian", "agile", "automation"]
+    },
+    {
+      "name": "confluence-assistant-skills",
+      "source": "./plugins/confluence-assistant-skills",
+      "description": "14 skills for Confluence Cloud automation and content management",
+      "version": "1.1.0",
+      "category": "productivity",
+      "keywords": ["confluence", "atlassian", "wiki", "documentation"]
+    },
+    {
+      "name": "splunk-assistant-skills",
+      "source": "./plugins/splunk-assistant-skills/plugins/splunk-assistant-skills",
+      "description": "17 specialized skills for Splunk search and administration",
+      "version": "2.0.0",
+      "category": "productivity",
+      "keywords": ["splunk", "search", "spl", "monitoring", "siem"]
+    },
+    {
+      "name": "assistant-skills",
+      "source": "./plugins/assistant-skills",
+      "description": "Complete toolkit for building Claude Code skills with scaffolding and optimization",
+      "version": "1.3.1",
+      "category": "development",
+      "keywords": ["skills", "scaffolding", "templates", "optimization"]
+    },
+    {
+      "name": "best-practices",
+      "source": "./plugins/best-practices",
+      "description": "Development best practices for git workflow, Docker, and Claude Code plugins",
+      "version": "1.0.0",
+      "category": "development",
+      "keywords": ["best-practices", "git", "docker", "workflow"]
+    },
+    {
+      "name": "apds-dev",
+      "source": "./plugins/apds-dev",
+      "description": "APDS Personal Data Server development with Deno and ed25519",
+      "version": "1.0.1",
+      "category": "development",
+      "keywords": ["apds", "deno", "p2p", "decentralized"]
+    },
+    {
+      "name": "anproto",
+      "source": "./plugins/anproto",
+      "description": "ANProto ed25519 keypair management and message signing",
+      "version": "1.1.0",
+      "category": "developer-tools",
+      "keywords": ["anproto", "ed25519", "cryptography", "signing"]
+    },
+    {
+      "name": "pearpass",
+      "source": "./plugins/pearpass",
+      "description": "PearPass secure distributed password manager development",
+      "version": "1.0.0",
+      "category": "developer-tools",
+      "keywords": ["pearpass", "security", "encryption", "passwords"]
+    },
+    {
+      "name": "wiredove",
+      "source": "./plugins/wiredove",
+      "description": "Wiredove decentralized social networking with WebRTC",
+      "version": "1.0.0",
+      "category": "development",
+      "keywords": ["wiredove", "social", "p2p", "webrtc", "trystero"]
+    }
+  ]
 }

@@ -2,58 +2,92 @@
 
 A Claude Code marketplace providing plugins for P2P development, enterprise integrations, and developer productivity.
 
+Each plugin is maintained as an independent GitHub repository and included here as a git submodule.
+
 ## Installation
 
-### From GitHub
+### Full Marketplace (all plugins)
 
 ```bash
-# In Claude Code:
-# "Install grandcamel-plugins from github:grandcamel/grandcamel-plugins"
+# Clone with all plugins
+git clone --recurse-submodules https://github.com/grandcamel/grandcamel-plugins.git
+
+# Use with Claude Code
+claude --plugin-dir ./grandcamel-plugins
 ```
 
-### Manual Installation
+### Individual Plugins
+
+Each plugin can be installed directly from its own repository:
 
 ```bash
-git clone https://github.com/grandcamel/grandcamel-plugins.git
-claude --plugin-dir ./grandcamel-plugins
+# Example: Install just the holepunch plugin
+claude --plugin github:grandcamel/holepunch-plugin
 ```
 
 ## Plugins
 
 ### P2P Development
 
-| Plugin | Description |
-|--------|-------------|
-| **holepunch** | Build zero-infrastructure P2P applications with Holepunch ecosystem (Pear, Hypercore, Hyperswarm) |
-| **apds-dev** | APDS Personal Data Server development support |
-| **anproto** | ANProto ed25519 keypair management and message signing |
-| **pearpass** | PearPass password manager development support |
-| **wiredove** | Wiredove decentralized social networking development |
+| Plugin | Repository | Description |
+|--------|------------|-------------|
+| **holepunch** | [grandcamel/holepunch-plugin](https://github.com/grandcamel/holepunch-plugin) | Build zero-infrastructure P2P apps with Holepunch ecosystem |
+| **apds-dev** | [grandcamel/apds-plugin](https://github.com/grandcamel/apds-plugin) | APDS Personal Data Server development |
+| **anproto** | [grandcamel/anproto-plugin](https://github.com/grandcamel/anproto-plugin) | ANProto ed25519 keypair management |
+| **pearpass** | [grandcamel/pearpass-plugin](https://github.com/grandcamel/pearpass-plugin) | PearPass password manager development |
+| **wiredove** | [grandcamel/wiredove-plugin](https://github.com/grandcamel/wiredove-plugin) | Wiredove decentralized social networking |
 
 ### Enterprise Integrations
 
-| Plugin | Description |
-|--------|-------------|
-| **jira-assistant-skills** | 18 specialized skills for JIRA automation |
-| **confluence-assistant-skills** | 14 skills for Confluence Cloud automation |
-| **splunk-assistant-skills** | 17 skills for Splunk search and administration |
+| Plugin | Repository | Description |
+|--------|------------|-------------|
+| **jira-assistant-skills** | [grandcamel/JIRA-Assistant-Skills](https://github.com/grandcamel/JIRA-Assistant-Skills) | 18 specialized skills for JIRA automation |
+| **confluence-assistant-skills** | [grandcamel/Confluence-Assistant-Skills](https://github.com/grandcamel/Confluence-Assistant-Skills) | 14 skills for Confluence Cloud automation |
+| **splunk-assistant-skills** | [grandcamel/Splunk-Assistant-Skills](https://github.com/grandcamel/Splunk-Assistant-Skills) | 17 skills for Splunk search and administration |
 
 ### Developer Productivity
 
-| Plugin | Description |
-|--------|-------------|
-| **assistant-skills** | Complete toolkit for building Claude Code skills |
-| **best-practices** | Development best practices for git, Docker, and Claude Code |
-| **notebooklm** | Query Google NotebookLM for source-grounded answers |
+| Plugin | Repository | Description |
+|--------|------------|-------------|
+| **assistant-skills** | [grandcamel/Assistant-Skills](https://github.com/grandcamel/Assistant-Skills) | Complete toolkit for building Claude Code skills |
+| **best-practices** | [grandcamel/best-practices-plugin](https://github.com/grandcamel/best-practices-plugin) | Development best practices for git, Docker, Claude Code |
+
+## Working with Submodules
+
+### Update all plugins to latest
+
+```bash
+git submodule update --remote --merge
+git add .
+git commit -m "chore: update all plugins to latest"
+```
+
+### Update a specific plugin
+
+```bash
+cd plugins/holepunch
+git pull origin main
+cd ../..
+git add plugins/holepunch
+git commit -m "chore(holepunch): update to latest"
+```
+
+### Initialize submodules after clone
+
+If you cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init --recursive
+```
 
 ## Project Structure
 
 ```
 grandcamel-plugins/
 ├── .claude-plugin/
-│   └── marketplace.json
-├── plugins/
-│   ├── holepunch/
+│   └── marketplace.json      # Marketplace manifest
+├── plugins/                  # Git submodules
+│   ├── holepunch/           → grandcamel/holepunch-plugin
 │   ├── jira-assistant-skills/
 │   ├── confluence-assistant-skills/
 │   ├── splunk-assistant-skills/
@@ -62,38 +96,32 @@ grandcamel-plugins/
 │   ├── apds-dev/
 │   ├── anproto/
 │   ├── pearpass/
-│   ├── wiredove/
-│   └── notebooklm/
+│   └── wiredove/
+├── .gitmodules              # Submodule configuration
 ├── VERSION
 ├── README.md
 ├── CLAUDE.md
 └── LICENSE
 ```
 
-## Using Individual Plugins
-
-Each plugin can be used standalone:
-
-```bash
-claude --plugin-dir ./grandcamel-plugins/plugins/holepunch
-claude --plugin-dir ./grandcamel-plugins/plugins/jira-assistant-skills
-```
-
 ## Python Dependencies
 
-Some plugins require Python libraries:
+Some plugins require Python libraries (installed via pip):
 
-```bash
-# JIRA plugin
-pip install jira-assistant-skills-lib
+- **jira-assistant-skills**: `pip install jira-assistant-skills-lib`
+- **confluence-assistant-skills**: `pip install confluence-assistant-skills-lib`
+- **splunk-assistant-skills**: `pip install splunk-assistant-skills-lib`
 
-# Confluence plugin
-pip install confluence-assistant-skills-lib
+## Contributing
 
-# Splunk plugin
-pip install splunk-assistant-skills-lib
-```
+Each plugin is maintained in its own repository. To contribute:
+
+1. Fork the specific plugin repository
+2. Make your changes
+3. Submit a PR to the plugin repository
+
+To add a new plugin to this marketplace, submit a PR adding the submodule.
 
 ## License
 
-MIT
+MIT - Each plugin may have its own license; check the individual repositories.

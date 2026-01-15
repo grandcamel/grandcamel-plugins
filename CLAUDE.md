@@ -1,82 +1,97 @@
 # Grandcamel Plugins Marketplace
 
-Claude Code marketplace consolidating plugins for P2P development, enterprise integrations, and developer productivity.
+Claude Code marketplace using git submodules to reference independent plugin repositories.
 
 ## Project Structure
 
 ```
 grandcamel-plugins/
 ├── .claude-plugin/
-│   └── marketplace.json         # Marketplace manifest
-├── plugins/
-│   └── <plugin-name>/           # Individual plugins
-│       ├── plugin.json          # Plugin metadata
-│       ├── skills/              # Plugin skills
-│       ├── commands/            # Slash commands
-│       ├── agents/              # Autonomous agents
-│       └── hooks/               # Event handlers
+│   └── marketplace.json      # Marketplace manifest
+├── plugins/                  # Git submodules (not embedded code)
+│   └── <plugin-name>/       → GitHub repository
+├── .gitmodules              # Submodule URLs
 ├── VERSION
-├── README.md
-├── CLAUDE.md
-└── LICENSE
+└── README.md
 ```
+
+## Key Concept: Submodule Architecture
+
+Each plugin in `plugins/` is a **git submodule** pointing to an external repository:
+
+- Plugins are independently versioned and maintained
+- This repo is an aggregator/index, not the source of truth
+- Plugin updates are pulled from upstream repos
 
 ## Development Guidelines
 
-### Versioning
-
-- **Marketplace version**: In `VERSION` and `.claude-plugin/marketplace.json` → `metadata.version`
-- **Plugin versions**: In each `plugins/<name>/plugin.json` → `version` and marketplace `plugins[].version`
-- **Format**: Semantic versioning (MAJOR.MINOR.PATCH)
-
 ### Adding a New Plugin
 
-1. Create `plugins/<plugin-name>/` directory
-2. Add `plugin.json` with required fields:
+1. Create the plugin in its own GitHub repository
+2. Add as submodule:
+   ```bash
+   git submodule add https://github.com/owner/repo.git plugins/plugin-name
+   ```
+3. Register in `.claude-plugin/marketplace.json`:
    ```json
    {
      "name": "plugin-name",
-     "version": "1.0.0",
-     "description": "What the plugin does"
+     "source": "./plugins/plugin-name",
+     "version": "1.0.0"
    }
    ```
-3. Add components (skills/, commands/, agents/)
-4. Register in `.claude-plugin/marketplace.json` → `plugins[]`
-5. Update README.md
+4. Commit changes
+
+### Updating Plugins
+
+```bash
+# Update all plugins
+git submodule update --remote --merge
+
+# Update specific plugin
+cd plugins/plugin-name
+git pull origin main
+cd ../..
+git add plugins/plugin-name
+git commit -m "chore(plugin-name): update submodule"
+```
+
+### Versioning
+
+- **Marketplace version**: In `VERSION` file - increment when adding/removing plugins
+- **Plugin versions**: Managed in individual plugin repos, reflected in marketplace.json
 
 ### Commit Messages
 
 Use conventional commits:
-- `feat(<plugin>):` - New features
-- `fix(<plugin>):` - Bug fixes
-- `docs(<plugin>):` - Documentation
-- `refactor(<plugin>):` - Code restructuring
-- `chore:` - Maintenance tasks
+- `chore(<plugin>): update submodule` - Plugin updates
+- `feat: add <plugin> plugin` - New plugins
+- `docs:` - Documentation changes
 
-### Testing
+## Plugin Repositories
+
+| Plugin | Repository |
+|--------|------------|
+| holepunch | grandcamel/holepunch-plugin |
+| jira-assistant-skills | grandcamel/JIRA-Assistant-Skills |
+| confluence-assistant-skills | grandcamel/Confluence-Assistant-Skills |
+| splunk-assistant-skills | grandcamel/Splunk-Assistant-Skills |
+| assistant-skills | grandcamel/Assistant-Skills |
+| best-practices | grandcamel/best-practices-plugin |
+| apds-dev | grandcamel/apds-plugin |
+| anproto | grandcamel/anproto-plugin |
+| pearpass | grandcamel/pearpass-plugin |
+| wiredove | grandcamel/wiredove-plugin |
+
+## Testing
 
 ```bash
-# Test entire marketplace
+# Ensure submodules are initialized
+git submodule update --init --recursive
+
+# Test marketplace
 claude --plugin-dir ./
 
 # Test individual plugin
-claude --plugin-dir ./plugins/<plugin-name>
+claude --plugin-dir ./plugins/holepunch
 ```
-
-### Python Plugins
-
-Plugins with Python dependencies:
-- jira-assistant-skills → jira-assistant-skills-lib (PyPI)
-- confluence-assistant-skills → confluence-assistant-skills-lib (PyPI)
-- splunk-assistant-skills → splunk-assistant-skills-lib (PyPI)
-- notebooklm → patchright (browser automation)
-
-Each plugin maintains its own `requirements.txt`.
-
-## Plugin Categories
-
-| Category | Plugins |
-|----------|---------|
-| development | holepunch, assistant-skills, best-practices, apds-dev, wiredove |
-| productivity | jira-assistant-skills, confluence-assistant-skills, splunk-assistant-skills, notebooklm |
-| developer-tools | anproto, pearpass |
