@@ -1,14 +1,14 @@
 {
-  "name": "grandcamel-plugins",
+  "name": "as-plugins",
   "owner": {
     "name": "grandcamel",
     "url": "https://github.com/grandcamel"
   },
   "metadata": {
-    "description": "Claude Code plugins for enterprise integrations and developer productivity",
-    "version": "1.1.0",
-    "homepage": "https://github.com/grandcamel/grandcamel-plugins",
-    "repository": "https://github.com/grandcamel/grandcamel-plugins",
+    "description": "Assistant Skills plugins for Claude Code - enterprise integrations and developer productivity",
+    "version": "2.0.0",
+    "homepage": "https://github.com/grandcamel/as-plugins",
+    "repository": "https://github.com/grandcamel/as-plugins",
     "license": "MIT"
   },
   "plugins": [
