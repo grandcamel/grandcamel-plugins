@@ -7,9 +7,15 @@ to verify credentials are correct before saving.
 """
 
 import base64
+import os
 from urllib.parse import urljoin
 
 import requests
+import urllib3
+
+# Suppress InsecureRequestWarning when SSL verification is intentionally disabled
+# This is only used for Splunk with self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def validate_confluence(url: str, email: str, token: str) -> tuple[bool, str]:
@@ -145,9 +151,41 @@ def validate_jira(url: str, email: str, token: str) -> tuple[bool, str]:
     return False, "Could not validate credentials"
 
 
+def _get_splunk_ssl_verify():
+    """
+    Determine SSL verification setting for Splunk connections.
+
+    Checks environment variables in order:
+    1. SPLUNK_CA_CERT - Path to CA certificate file (enables verification)
+    2. SPLUNK_VERIFY_SSL - Explicit true/false control
+
+    Returns:
+        str (cert path), True (verify with system certs), or False (no verification)
+    """
+    # Check for custom CA certificate
+    ca_cert = os.environ.get("SPLUNK_CA_CERT", "")
+    if ca_cert and os.path.isfile(ca_cert):
+        return ca_cert
+
+    # Check for explicit SSL verification setting
+    verify_ssl = os.environ.get("SPLUNK_VERIFY_SSL", "").lower()
+    if verify_ssl in ("false", "0", "no"):
+        return False
+    if verify_ssl in ("true", "1", "yes"):
+        return True
+
+    # Default: try with verification first, fall back to without
+    return None  # Indicates "try both"
+
+
 def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
     """
     Validate Splunk credentials by testing API connectivity.
+
+    SSL verification behavior (controlled by environment variables):
+    - SPLUNK_CA_CERT: Path to CA certificate file for verification
+    - SPLUNK_VERIFY_SSL: Set to 'false' to disable SSL verification
+      (required for self-signed certificates without a CA cert)
 
     Args:
         url: Splunk management URL (https://splunk:8089)
@@ -157,20 +195,35 @@ def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
     Returns:
         Tuple of (success, message)
     """
-    try:
-        # Use /services/auth/login to test authentication
-        api_url = urljoin(url + "/", "services/auth/login")
+    api_url = urljoin(url + "/", "services/auth/login")
+    request_data = {
+        "username": username,
+        "password": password,
+        "output_mode": "json",
+    }
 
+    ssl_verify = _get_splunk_ssl_verify()
+
+    def _make_request(verify_setting):
+        """Make the authentication request with given SSL setting."""
         response = requests.post(
             api_url,
-            data={
-                "username": username,
-                "password": password,
-                "output_mode": "json",
-            },
-            verify=False,  # Splunk often uses self-signed certs
+            data=request_data,
+            verify=verify_setting,
             timeout=10,
         )
+        return response
+
+    try:
+        if ssl_verify is None:
+            # Try with SSL verification first
+            try:
+                response = _make_request(True)
+            except requests.exceptions.SSLError:
+                # Fall back to no verification for self-signed certs
+                response = _make_request(False)
+        else:
+            response = _make_request(ssl_verify)
 
         if response.status_code == 200:
             return True, "Connected"
@@ -180,6 +233,8 @@ def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
 
         return False, f"API returned status {response.status_code}"
 
+    except requests.exceptions.SSLError as e:
+        return False, f"SSL error: {e}. Set SPLUNK_VERIFY_SSL=false for self-signed certs"
     except requests.exceptions.Timeout:
         return False, "Connection timed out"
     except requests.exceptions.ConnectionError:
