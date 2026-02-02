@@ -15,8 +15,8 @@
     {
       "name": "jira-assistant-skills",
       "source": {
-        "source": "github",
-        "repo": "grandcamel/JIRA-Assistant-Skills"
+        "source": "url",
+        "url": "https://github.com/grandcamel/JIRA-Assistant-Skills.git"
       },
       "description": "18 specialized skills for JIRA automation with natural language",
       "version": "4.0.1",
@@ -31,8 +31,8 @@
     {
       "name": "confluence-assistant-skills",
       "source": {
-        "source": "github",
-        "repo": "grandcamel/Confluence-Assistant-Skills"
+        "source": "url",
+        "url": "https://github.com/grandcamel/Confluence-Assistant-Skills.git"
       },
       "description": "14 skills for Confluence Cloud automation and content management",
       "version": "2.0.0",
@@ -47,8 +47,8 @@
     {
       "name": "splunk-assistant-skills",
       "source": {
-        "source": "github",
-        "repo": "grandcamel/Splunk-Assistant-Skills"
+        "source": "url",
+        "url": "https://github.com/grandcamel/Splunk-Assistant-Skills.git"
       },
       "description": "17 specialized skills for Splunk search and administration",
       "version": "2.0.0",
@@ -64,8 +64,8 @@
     {
       "name": "gitlab-assistant-skills",
       "source": {
-        "source": "github",
-        "repo": "grandcamel/gitlab-assistant-skills"
+        "source": "url",
+        "url": "https://github.com/grandcamel/gitlab-assistant-skills.git"
       },
       "description": "Skills for GitLab automation and repository management",
       "version": "1.1.0",
@@ -80,8 +80,8 @@
     {
       "name": "assistant-skills",
       "source": {
-        "source": "github",
-        "repo": "grandcamel/Assistant-Skills"
+        "source": "url",
+        "url": "https://github.com/grandcamel/Assistant-Skills.git"
       },
       "description": "Complete toolkit for building Claude Code skills with scaffolding and optimization",
       "version": "1.3.1",
