@@ -35,6 +35,8 @@ VENV_DIR = Path(os.environ.get("AS_PLUGINS_VENV_DIR", REPO_DIR / ".venv"))
 SKIP_PLUGINS = os.environ.get("AS_PLUGINS_SKIP_PLUGINS", "false").lower() == "true"
 NO_KEYCHAIN = os.environ.get("AS_PLUGINS_NO_KEYCHAIN", "false").lower() == "true"
 PLATFORMS_ARG = os.environ.get("AS_PLUGINS_PLATFORMS", "")
+VALIDATE_ONLY = os.environ.get("AS_PLUGINS_VALIDATE_ONLY", "false").lower() == "true"
+SKIP_CREDENTIALS = os.environ.get("AS_PLUGINS_SKIP_CREDENTIALS", "false").lower() == "true"
 
 # Check if stdin is a TTY (interactive mode)
 IS_INTERACTIVE = sys.stdin.isatty()
@@ -75,6 +77,196 @@ def show_existing_config(configured: dict):
 
     console.print(table)
     console.print()
+
+
+def validate_existing_config(configured: dict) -> dict:
+    """
+    Validate existing credentials for all configured platforms.
+
+    Args:
+        configured: Dictionary of platform -> credentials
+
+    Returns:
+        Dictionary of platform -> {"valid": bool, "message": str, "url": str}
+    """
+    status = {}
+
+    for platform, creds in configured.items():
+        success, message = validate_credentials(platform, creds)
+
+        # Extract URL for display
+        config = PLATFORM_CONFIGS.get(platform, {})
+        url_var = config.get("url_var", "")
+        url = creds.get(url_var, "")
+        if url:
+            url = url.replace("https://", "").replace("http://", "").rstrip("/")
+
+        status[platform] = {
+            "valid": success,
+            "message": message,
+            "url": url,
+        }
+
+    return status
+
+
+def show_validation_results(validation_status: dict, configured: dict) -> bool:
+    """
+    Display validation results for --validate-only mode.
+
+    Args:
+        validation_status: Results from validate_existing_config
+        configured: Dictionary of configured platforms
+
+    Returns:
+        True if all configured platforms are valid
+    """
+    console.print("[bold]Validating existing configuration...[/bold]")
+    console.print()
+
+    all_platforms = ["confluence", "jira", "splunk"]
+    all_valid = True
+    any_configured = False
+
+    for platform in all_platforms:
+        if platform in validation_status:
+            any_configured = True
+            status = validation_status[platform]
+            url_info = f" ({status['url']})" if status["url"] else ""
+
+            if status["valid"]:
+                console.print(f"  [green]✓[/green] {platform.capitalize()}: {status['message']}{url_info}")
+            else:
+                console.print(f"  [red]✗[/red] {platform.capitalize()}: {status['message']}{url_info}")
+                all_valid = False
+        else:
+            console.print(f"  [dim]○[/dim] {platform.capitalize()}: (not configured)")
+
+    console.print()
+
+    if not any_configured:
+        console.print("[yellow]No platforms configured.[/yellow]")
+        console.print("Run setup.sh without --validate-only to configure credentials.")
+        return False
+
+    if all_valid:
+        console.print("[green]All configured platforms are valid.[/green]")
+    else:
+        console.print("[yellow]Some credentials need to be updated.[/yellow]")
+        console.print("Run setup.sh to reconfigure invalid credentials.")
+
+    return all_valid
+
+
+def select_platforms_with_status(configured: dict, validation_status: dict) -> tuple[list[str], bool]:
+    """
+    Enhanced platform selection with validation status.
+
+    Shows existing config status and offers options to keep, reconfigure,
+    or add new platforms.
+
+    Args:
+        configured: Dictionary of configured platforms
+        validation_status: Results from validate_existing_config
+
+    Returns:
+        Tuple of (list of platforms to configure, skip_credentials flag)
+    """
+    # If platforms specified via command line, use those
+    if PLATFORMS_ARG:
+        platforms = [p.strip().lower() for p in PLATFORMS_ARG.split(",")]
+        valid = [p for p in platforms if p in PLATFORM_CONFIGS]
+        if valid:
+            return valid, False
+
+    # Check if we have any valid existing config
+    valid_platforms = [p for p, s in validation_status.items() if s["valid"]]
+    invalid_platforms = [p for p, s in validation_status.items() if not s["valid"]]
+    unconfigured = [p for p in PLATFORM_CONFIGS.keys() if p not in configured]
+
+    # Show current status
+    console.print("[bold]Validating existing configuration...[/bold]")
+
+    all_platforms = ["confluence", "jira", "splunk"]
+    for platform in all_platforms:
+        if platform in validation_status:
+            status = validation_status[platform]
+            url_info = f" ({status['url']})" if status["url"] else ""
+            if status["valid"]:
+                console.print(f"  [green]✓[/green] {platform.capitalize()}: Valid{url_info}")
+            else:
+                console.print(f"  [red]✗[/red] {platform.capitalize()}: {status['message']}{url_info}")
+        else:
+            console.print(f"  [dim]○[/dim] {platform.capitalize()}: (not configured)")
+
+    console.print()
+
+    # If all existing configs are invalid, go straight to configuration
+    if configured and not valid_platforms:
+        console.print("[yellow]Credentials need to be updated. Proceeding with configuration...[/yellow]")
+        console.print()
+        return list(configured.keys()), False
+
+    # Build menu options
+    options = []
+    option_map = {}
+
+    # Option 1: Keep existing (only if we have valid platforms)
+    if valid_platforms:
+        options.append("  [1] Keep existing config, install packages/plugins only (Recommended)")
+        option_map["1"] = ("keep", valid_platforms)
+
+    # Option 2+: Reconfigure specific invalid platforms
+    next_opt = 2
+    if invalid_platforms:
+        for platform in invalid_platforms:
+            options.append(f"  [{next_opt}] Reconfigure {platform.capitalize()}")
+            option_map[str(next_opt)] = ("reconfigure", [platform])
+            next_opt += 1
+
+    # Option: Add unconfigured platforms
+    if unconfigured:
+        for platform in unconfigured:
+            options.append(f"  [{next_opt}] Add {platform.capitalize()}")
+            option_map[str(next_opt)] = ("add", [platform])
+            next_opt += 1
+
+    # Option: Reconfigure all
+    if configured:
+        options.append(f"  [{next_opt}] Reconfigure all platforms")
+        option_map[str(next_opt)] = ("reconfigure_all", list(configured.keys()))
+        next_opt += 1
+
+    # Option: Configure from scratch
+    if not configured:
+        options.append("  [1] Configure Confluence + JIRA (Atlassian Cloud)")
+        options.append("  [2] Configure all platforms (Confluence + JIRA + Splunk)")
+        options.append("  [3] Configure Confluence only")
+        options.append("  [4] Configure JIRA only")
+        options.append("  [5] Configure Splunk only")
+        option_map = {
+            "1": ("configure", ["confluence", "jira"]),
+            "2": ("configure", ["confluence", "jira", "splunk"]),
+            "3": ("configure", ["confluence"]),
+            "4": ("configure", ["jira"]),
+            "5": ("configure", ["splunk"]),
+        }
+        next_opt = 6
+
+    console.print("[bold]What would you like to do?[/bold]")
+    for opt in options:
+        console.print(opt)
+    console.print()
+
+    valid_choices = list(option_map.keys())
+    choice = Prompt.ask("Select", choices=valid_choices, default="1")
+    action, platforms = option_map[choice]
+
+    if action == "keep":
+        # Skip credentials, just install packages/plugins
+        return platforms, True
+    else:
+        return platforms, False
 
 
 def select_platforms(configured: dict) -> list[str]:
@@ -243,6 +435,35 @@ def main():
     """Main setup wizard entry point."""
     show_welcome()
 
+    # Detect existing config
+    configured, existing_env = detect_existing_config()
+
+    # Validate existing credentials upfront
+    validation_status = validate_existing_config(configured)
+
+    # Handle --validate-only mode
+    if VALIDATE_ONLY:
+        all_valid = show_validation_results(validation_status, configured)
+        sys.exit(0 if all_valid else 1)
+
+    # Handle --skip-credentials mode
+    if SKIP_CREDENTIALS:
+        console.print("[dim]Skipping credential configuration (--skip-credentials)[/dim]")
+        console.print()
+
+        # Use existing configured platforms
+        platforms_to_install = list(configured.keys())
+        if not platforms_to_install:
+            console.print("[yellow]No existing configuration found.[/yellow]")
+            console.print("Run setup.sh without --skip-credentials to configure platforms.")
+            sys.exit(1)
+
+        # Install packages and plugins only
+        install_python_packages(platforms_to_install)
+        install_claude_plugins(platforms_to_install)
+        show_summary(platforms_to_install, existing_env)
+        return
+
     # Check for interactive mode
     if not IS_INTERACTIVE:
         console.print("[yellow]Non-interactive mode detected.[/yellow]")
@@ -254,13 +475,21 @@ def main():
         console.print("Or run setup.sh in a terminal for interactive prompts.")
         sys.exit(1)
 
-    # Detect existing config
-    configured, existing_env = detect_existing_config()
-    show_existing_config(configured)
+    # Select platforms with enhanced menu if we have existing config
+    if configured:
+        platforms, skip_creds = select_platforms_with_status(configured, validation_status)
+        console.print()
 
-    # Select platforms
-    platforms = select_platforms(configured)
-    console.print()
+        if skip_creds:
+            # User chose to keep existing config
+            install_python_packages(platforms)
+            install_claude_plugins(platforms)
+            show_summary(platforms, existing_env)
+            return
+    else:
+        # Fresh install - use standard menu
+        platforms = select_platforms(configured)
+        console.print()
 
     # Track credentials to reconfigure
     credentials = {}

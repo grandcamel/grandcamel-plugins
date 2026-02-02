@@ -22,6 +22,8 @@ FORCE=false
 SKIP_PLUGINS=false
 NO_KEYCHAIN=false
 PLATFORMS=""
+VALIDATE_ONLY=false
+SKIP_CREDENTIALS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,17 +43,27 @@ while [[ $# -gt 0 ]]; do
             PLATFORMS="$2"
             shift 2
             ;;
+        --validate-only)
+            VALIDATE_ONLY=true
+            shift
+            ;;
+        --skip-credentials)
+            SKIP_CREDENTIALS=true
+            shift
+            ;;
         --help|-h)
             echo "AS-Plugins Setup Wizard"
             echo ""
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --force, -f      Force recreation of virtual environment"
-            echo "  --skip-plugins   Skip Claude Code plugin installation"
-            echo "  --no-keychain    Don't use OS keychain for token storage"
-            echo "  --platforms      Comma-separated platforms (confluence,jira,splunk)"
-            echo "  --help, -h       Show this help message"
+            echo "  --force, -f        Force recreation of virtual environment"
+            echo "  --skip-plugins     Skip Claude Code plugin installation"
+            echo "  --no-keychain      Don't use OS keychain for token storage"
+            echo "  --platforms        Comma-separated platforms (confluence,jira,splunk)"
+            echo "  --validate-only    Validate existing credentials and exit"
+            echo "  --skip-credentials Skip credential prompts, install packages/plugins only"
+            echo "  --help, -h         Show this help message"
             exit 0
             ;;
         *)
@@ -136,6 +148,8 @@ export AS_PLUGINS_VENV_DIR="$VENV_DIR"
 export AS_PLUGINS_SKIP_PLUGINS="$SKIP_PLUGINS"
 export AS_PLUGINS_NO_KEYCHAIN="$NO_KEYCHAIN"
 export AS_PLUGINS_PLATFORMS="$PLATFORMS"
+export AS_PLUGINS_VALIDATE_ONLY="$VALIDATE_ONLY"
+export AS_PLUGINS_SKIP_CREDENTIALS="$SKIP_CREDENTIALS"
 
 python3 -m scripts.setup.main
 
