@@ -176,3 +176,48 @@ def get_env_var(name: str, default: str = "") -> str:
     env_file = Path.home() / ".env"
     env_vars = load_env_file(env_file)
     return env_vars.get(name, default)
+
+
+def resolve_env_var(name: str, sources: list[tuple[str, dict]]) -> tuple[str, str]:
+    """
+    Check multiple sources in priority order for an environment variable.
+
+    Args:
+        name: Variable name to look up
+        sources: Ordered list of (label, env_dict) tuples
+
+    Returns:
+        (value, source_label) if found, ("", "") otherwise
+    """
+    for label, env_dict in sources:
+        value = env_dict.get(name, "")
+        if value:
+            return value, label
+    return "", ""
+
+
+def discover_env_files() -> list[tuple[str, Path]]:
+    """
+    Discover env files that exist on disk.
+
+    Checks:
+        1. ~/.env (home directory)
+        2. {as-plugins parent}/as-demo/secrets/.env (sibling project)
+
+    Returns:
+        List of (label, path) for env files that exist
+    """
+    results = []
+
+    # ~/.env
+    home_env = Path.home() / ".env"
+    if home_env.exists():
+        results.append(("~/.env", home_env))
+
+    # as-demo/secrets/.env — find relative to this script's repo root
+    repo_dir = Path(__file__).parent.parent.parent  # scripts/setup/env_file.py -> repo root
+    as_demo_env = repo_dir.parent / "as-demo" / "secrets" / ".env"
+    if as_demo_env.exists():
+        results.append(("as-demo/secrets/.env", as_demo_env))
+
+    return results
