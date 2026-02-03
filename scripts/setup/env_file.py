@@ -81,7 +81,7 @@ def save_env_file(path: Path, env_vars: dict) -> Optional[Path]:
         shutil.copy2(path, backup_path)
 
     # Group variables by prefix for organization
-    prefixes = ["CONFLUENCE", "JIRA", "SPLUNK"]
+    prefixes = ["CONFLUENCE", "JIRA", "SPLUNK", "GITLAB"]
     grouped = {prefix: {} for prefix in prefixes}
     other = {}
 

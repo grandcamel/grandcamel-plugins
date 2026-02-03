@@ -21,8 +21,11 @@ from .validate import validate_credentials
 from .env_file import load_env_file, save_env_file, mask_value
 from .plugins import (
     check_claude_cli,
+    check_cli_installed,
     check_marketplace_added,
     add_marketplace,
+    detect_os,
+    get_cli_install_instructions,
     install_plugin,
     get_installed_plugins,
 )
@@ -124,7 +127,7 @@ def show_validation_results(validation_status: dict, configured: dict) -> bool:
     console.print("[bold]Validating existing configuration...[/bold]")
     console.print()
 
-    all_platforms = ["confluence", "jira", "splunk"]
+    all_platforms = ["confluence", "jira", "splunk", "gitlab"]
     all_valid = True
     any_configured = False
 
@@ -187,7 +190,7 @@ def select_platforms_with_status(configured: dict, validation_status: dict) -> t
     # Show current status
     console.print("[bold]Validating existing configuration...[/bold]")
 
-    all_platforms = ["confluence", "jira", "splunk"]
+    all_platforms = ["confluence", "jira", "splunk", "gitlab"]
     for platform in all_platforms:
         if platform in validation_status:
             status = validation_status[platform]
@@ -240,18 +243,20 @@ def select_platforms_with_status(configured: dict, validation_status: dict) -> t
     # Option: Configure from scratch
     if not configured:
         options.append("  [1] Configure Confluence + JIRA (Atlassian Cloud)")
-        options.append("  [2] Configure all platforms (Confluence + JIRA + Splunk)")
+        options.append("  [2] Configure all platforms (Confluence + JIRA + Splunk + GitLab)")
         options.append("  [3] Configure Confluence only")
         options.append("  [4] Configure JIRA only")
         options.append("  [5] Configure Splunk only")
+        options.append("  [6] Configure GitLab only")
         option_map = {
             "1": ("configure", ["confluence", "jira"]),
-            "2": ("configure", ["confluence", "jira", "splunk"]),
+            "2": ("configure", ["confluence", "jira", "splunk", "gitlab"]),
             "3": ("configure", ["confluence"]),
             "4": ("configure", ["jira"]),
             "5": ("configure", ["splunk"]),
+            "6": ("configure", ["gitlab"]),
         }
-        next_opt = 6
+        next_opt = 7
 
     console.print("[bold]What would you like to do?[/bold]")
     for opt in options:
@@ -281,22 +286,71 @@ def select_platforms(configured: dict) -> list[str]:
     console.print("[bold]Which platforms would you like to configure?[/bold]")
     console.print()
     console.print("  [1] Confluence + JIRA (Atlassian Cloud)")
-    console.print("  [2] All platforms (Confluence + JIRA + Splunk)")
+    console.print("  [2] All platforms (Confluence + JIRA + Splunk + GitLab)")
     console.print("  [3] Confluence only")
     console.print("  [4] JIRA only")
     console.print("  [5] Splunk only")
+    console.print("  [6] GitLab only")
     console.print()
 
     choices = {
         "1": ["confluence", "jira"],
-        "2": ["confluence", "jira", "splunk"],
+        "2": ["confluence", "jira", "splunk", "gitlab"],
         "3": ["confluence"],
         "4": ["jira"],
         "5": ["splunk"],
+        "6": ["gitlab"],
     }
 
     choice = Prompt.ask("Select", choices=list(choices.keys()), default="1")
     return choices[choice]
+
+
+def check_platform_prerequisites(platform: str) -> tuple[bool, str]:
+    """
+    Check if platform prerequisites are met (e.g., CLI tools installed).
+
+    Args:
+        platform: Platform name to check
+
+    Returns:
+        Tuple of (success, error_message). If success is True, error_message is empty.
+    """
+    config = PLATFORM_CONFIGS.get(platform, {})
+
+    # Check CLI-based platforms for required CLI tool
+    if config.get("installation_type") == "cli":
+        cli_name = config.get("cli_name")
+        if cli_name and not check_cli_installed(cli_name):
+            os_type = detect_os()
+            instructions = get_cli_install_instructions(cli_name)
+            install_cmd = instructions.get(os_type) or instructions.get("manual", "")
+            return False, f"{cli_name} CLI not found. Install with: {install_cmd}"
+
+    return True, ""
+
+
+def show_cli_install_instructions(cli_name: str):
+    """Display installation instructions for a CLI tool."""
+    instructions = get_cli_install_instructions(cli_name)
+    os_type = detect_os()
+
+    console.print(f"  [yellow]{cli_name} CLI not found.[/yellow]")
+    console.print()
+    console.print("  Install with:")
+
+    if os_type == "macos" and "macos" in instructions:
+        console.print(f"    macOS:   {instructions['macos']}")
+    if os_type.startswith("linux") and "linux_apt" in instructions:
+        console.print(f"    Ubuntu:  {instructions['linux_apt']}")
+    if os_type == "linux_dnf" and "linux_dnf" in instructions:
+        console.print(f"    Fedora:  {instructions['linux_dnf']}")
+    if "windows" in instructions:
+        console.print(f"    Windows: {instructions['windows']}")
+    if "manual" in instructions:
+        console.print(f"    Manual:  {instructions['manual']}")
+
+    console.print()
 
 
 def install_python_packages(platforms: list[str]):
@@ -307,7 +361,8 @@ def install_python_packages(platforms: list[str]):
     packages = {
         "confluence": ("confluence-as", "1.1.0"),
         "jira": ("jira-as", "1.0.0"),
-        "splunk": ("splunk-as", "1.1.6"),
+        "splunk": ("splunk-as", "1.2.0"),
+        # gitlab: no Python package needed (uses glab CLI)
     }
 
     import subprocess
@@ -315,6 +370,14 @@ def install_python_packages(platforms: list[str]):
     pip_path = VENV_DIR / "bin" / "pip"
 
     for platform in platforms:
+        config = PLATFORM_CONFIGS.get(platform, {})
+
+        # Skip CLI-based platforms (they don't need Python packages)
+        if config.get("installation_type") == "cli":
+            cli_name = config.get("cli_name", "CLI")
+            console.print(f"  {platform} [dim](uses {cli_name} CLI)[/dim]")
+            continue
+
         if platform in packages:
             pkg_name, version = packages[platform]
             console.print(f"  {pkg_name} {version} ... ", end="")
@@ -360,6 +423,7 @@ def install_claude_plugins(platforms: list[str]):
         "confluence": "confluence-assistant-skills",
         "jira": "jira-assistant-skills",
         "splunk": "splunk-assistant-skills",
+        "gitlab": "gitlab-assistant-skills",
     }
 
     installed = get_installed_plugins()
@@ -411,6 +475,7 @@ def show_summary(platforms: list[str], env_vars: dict):
             "confluence": "confluence-assistant-skills",
             "jira": "jira-assistant-skills",
             "splunk": "splunk-assistant-skills",
+            "gitlab": "gitlab-assistant-skills",
         }
 
         relevant = [plugin_names[p] for p in platforms if plugin_names.get(p) in installed]
@@ -429,6 +494,8 @@ def show_summary(platforms: list[str], env_vars: dict):
         console.print('  "Show my open JIRA issues"')
     if "splunk" in platforms:
         console.print('  "Run a Splunk search for errors"')
+    if "gitlab" in platforms:
+        console.print('  "List my GitLab projects"')
 
 
 def main():
@@ -471,6 +538,7 @@ def main():
         console.print("  CONFLUENCE_SITE_URL, CONFLUENCE_EMAIL, CONFLUENCE_API_TOKEN")
         console.print("  JIRA_SITE_URL, JIRA_EMAIL, JIRA_API_TOKEN")
         console.print("  SPLUNK_URL, SPLUNK_USERNAME, SPLUNK_PASSWORD")
+        console.print("  GITLAB_TOKEN (optionally GITLAB_HOST for self-hosted)")
         console.print("")
         console.print("Or run setup.sh in a terminal for interactive prompts.")
         sys.exit(1)
@@ -499,6 +567,15 @@ def main():
     for platform in platforms:
         config = PLATFORM_CONFIGS[platform]
         console.print(f"[bold cyan]{config['title']}[/bold cyan]")
+
+        # Check CLI prerequisites for CLI-based platforms
+        prereq_ok, prereq_error = check_platform_prerequisites(platform)
+        if not prereq_ok:
+            show_cli_install_instructions(config.get("cli_name", ""))
+            if Confirm.ask(f"  Continue without {platform}?", default=True):
+                console.print(f"  [dim]Skipping {platform}[/dim]")
+                console.print()
+                continue
 
         # Check if we can reuse Atlassian credentials
         if platform in ["jira"] and "confluence" in platforms and "confluence" in credentials:

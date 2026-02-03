@@ -5,8 +5,58 @@ Claude Code plugin management for AS-Plugins Setup Wizard.
 Handles marketplace and plugin installation via the Claude CLI.
 """
 
+import platform
+import shutil
 import subprocess
 from typing import Optional
+
+
+def check_cli_installed(cli_name: str) -> bool:
+    """Check if a CLI tool is installed and available in PATH."""
+    return shutil.which(cli_name) is not None
+
+
+def detect_os() -> str:
+    """Detect the current operating system and package manager."""
+    system = platform.system().lower()
+    if system == "darwin":
+        return "macos"
+    elif system == "linux":
+        # Try to detect package manager
+        if shutil.which("apt"):
+            return "linux_apt"
+        elif shutil.which("dnf"):
+            return "linux_dnf"
+        elif shutil.which("pacman"):
+            return "linux_pacman"
+        return "linux"
+    elif system == "windows":
+        return "windows"
+    return "unknown"
+
+
+def get_cli_install_instructions(cli_name: str) -> dict:
+    """
+    Get platform-specific installation instructions for a CLI tool.
+
+    Args:
+        cli_name: Name of the CLI tool (e.g., "glab")
+
+    Returns:
+        Dictionary of os_type -> installation command
+    """
+    instructions = {
+        "glab": {
+            "macos": "brew install glab",
+            "linux_apt": "sudo apt install glab",
+            "linux_dnf": "sudo dnf install glab",
+            "linux_pacman": "sudo pacman -S gitlab-glab",
+            "linux": "See https://gitlab.com/gitlab-org/cli#installation",
+            "windows": "winget install glab",
+            "manual": "https://gitlab.com/gitlab-org/cli#installation",
+        },
+    }
+    return instructions.get(cli_name, {})
 
 
 def check_claude_cli() -> bool:

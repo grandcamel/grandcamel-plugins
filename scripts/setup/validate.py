@@ -243,12 +243,57 @@ def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
         return False, f"Error: {str(e)}"
 
 
+def validate_gitlab(host: str, token: str) -> tuple[bool, str]:
+    """
+    Validate GitLab credentials using the API directly.
+
+    Uses /api/v4/user endpoint to verify token and get user info.
+
+    Args:
+        host: GitLab host URL (https://gitlab.com or self-hosted)
+        token: Personal access token with api scope
+
+    Returns:
+        Tuple of (success, message)
+    """
+    # Normalize host URL
+    host = host.rstrip("/") if host else ""
+    if not host:
+        host = "https://gitlab.com"
+
+    # Try direct API call (works without glab CLI)
+    try:
+        headers = {"PRIVATE-TOKEN": token}
+        api_url = f"{host}/api/v4/user"
+        response = requests.get(api_url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            username = data.get("username", "Unknown")
+            return True, f"Connected as @{username}"
+
+        if response.status_code == 401:
+            return False, "Invalid token (401 Unauthorized)"
+
+        if response.status_code == 403:
+            return False, "Token lacks required scopes (needs 'api' scope)"
+
+        return False, f"API returned status {response.status_code}"
+
+    except requests.exceptions.ConnectionError:
+        return False, f"Could not connect to {host}"
+    except requests.exceptions.Timeout:
+        return False, "Connection timed out"
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
+
 def validate_credentials(platform: str, credentials: dict) -> tuple[bool, str]:
     """
     Validate credentials for a platform.
 
     Args:
-        platform: Platform name (confluence, jira, splunk)
+        platform: Platform name (confluence, jira, splunk, gitlab)
         credentials: Dictionary of credential variables
 
     Returns:
@@ -273,6 +318,12 @@ def validate_credentials(platform: str, credentials: dict) -> tuple[bool, str]:
             url=credentials.get("SPLUNK_URL", ""),
             username=credentials.get("SPLUNK_USERNAME", ""),
             password=credentials.get("SPLUNK_PASSWORD", ""),
+        )
+
+    if platform == "gitlab":
+        return validate_gitlab(
+            host=credentials.get("GITLAB_HOST", "https://gitlab.com"),
+            token=credentials.get("GITLAB_TOKEN", ""),
         )
 
     return False, f"Unknown platform: {platform}"

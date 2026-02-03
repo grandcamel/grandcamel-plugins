@@ -80,6 +80,29 @@ PLATFORM_CONFIGS = {
             },
         },
     },
+    "gitlab": {
+        "title": "GitLab Configuration",
+        "installation_type": "cli",  # CLI-based platform (uses glab)
+        "cli_name": "glab",
+        "required_vars": ["GITLAB_TOKEN"],
+        "optional_vars": ["GITLAB_HOST"],  # Optional for gitlab.com users
+        "url_var": "GITLAB_HOST",
+        "prompts": {
+            "GITLAB_HOST": {
+                "label": "GitLab Host",
+                "placeholder": "https://gitlab.com",
+                "default": "https://gitlab.com",
+                "validator": "url",
+                "help": "Press Enter for gitlab.com, or enter your self-hosted URL",
+                "optional": True,
+            },
+            "GITLAB_TOKEN": {
+                "label": "Personal Access Token",
+                "hidden": True,
+                "help": "Create at: https://gitlab.com/-/user_settings/personal_access_tokens (scopes: api)",
+            },
+        },
+    },
 }
 
 
@@ -146,7 +169,7 @@ def collect_credentials(platform: str, existing_env: dict) -> dict:
     Collect credentials for a platform interactively.
 
     Args:
-        platform: Platform name (confluence, jira, splunk)
+        platform: Platform name (confluence, jira, splunk, gitlab)
         existing_env: Existing environment variables for defaults
 
     Returns:
@@ -161,9 +184,11 @@ def collect_credentials(platform: str, existing_env: dict) -> dict:
         validator_name = prompt_config.get("validator")
         hidden = prompt_config.get("hidden", False)
         help_text = prompt_config.get("help")
+        is_optional = prompt_config.get("optional", False)
+        config_default = prompt_config.get("default", "")
 
-        # Get default from existing env
-        default = existing_env.get(var_name, "")
+        # Get default from existing env, falling back to config default
+        default = existing_env.get(var_name, "") or config_default
 
         # Show help text if available
         if help_text:
@@ -188,12 +213,16 @@ def collect_credentials(platform: str, existing_env: dict) -> dict:
             else:
                 value = Prompt.ask(prompt_text, default=default or "")
 
+            # Handle optional fields with defaults
             if not value:
-                console.print("    [red]Value required[/red]")
-                continue
+                if is_optional and config_default:
+                    value = config_default
+                elif not is_optional:
+                    console.print("    [red]Value required[/red]")
+                    continue
 
-            # Validate if validator specified
-            if validator_name:
+            # Validate if validator specified and we have a value
+            if value and validator_name:
                 validator = VALIDATORS.get(validator_name)
                 if validator:
                     valid, result = validator(value)
@@ -204,6 +233,7 @@ def collect_credentials(platform: str, existing_env: dict) -> dict:
 
             break
 
-        credentials[var_name] = value
+        if value:  # Only add non-empty values
+            credentials[var_name] = value
 
     return credentials

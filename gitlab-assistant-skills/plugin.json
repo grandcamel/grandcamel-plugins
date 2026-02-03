@@ -1,0 +1,19 @@
+{
+  "name": "gitlab-assistant-skills",
+  "version": "1.0.0",
+  "description": "GitLab automation suite with skills for projects, issues, merge requests, and CI/CD pipelines using the glab CLI",
+  "author": {
+    "name": "grandcamel"
+  },
+  "repository": "https://github.com/grandcamel/gitlab-assistant-skills",
+  "skills": [
+    "./skills/gitlab-project/SKILL.md",
+    "./skills/gitlab-issue/SKILL.md",
+    "./skills/gitlab-mr/SKILL.md",
+    "./skills/gitlab-ci/SKILL.md"
+  ],
+  "commands": [
+    "./commands/gitlab-assistant-setup.md",
+    "./commands/browse-skills.md"
+  ]
+}
