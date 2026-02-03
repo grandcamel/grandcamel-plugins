@@ -1,7 +1,7 @@
 # Assistant Skills Python Libraries
 confluence-as>=1.1.0
 jira-as>=1.0.0
-splunk-as>=1.1.6
+splunk-as>=1.2.0
 
 # HTTP Client (for API validation)
 requests>=2.31.0
