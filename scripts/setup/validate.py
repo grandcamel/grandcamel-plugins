@@ -315,7 +315,7 @@ def validate_credentials(platform: str, credentials: dict) -> tuple[bool, str]:
 
     if platform == "splunk":
         return validate_splunk(
-            url=credentials.get("SPLUNK_URL", ""),
+            url=credentials.get("SPLUNK_SITE_URL", ""),
             username=credentials.get("SPLUNK_USERNAME", ""),
             password=credentials.get("SPLUNK_PASSWORD", ""),
         )

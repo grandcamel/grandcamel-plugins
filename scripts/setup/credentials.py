@@ -64,10 +64,10 @@ PLATFORM_CONFIGS = {
     },
     "splunk": {
         "title": "Splunk Configuration",
-        "required_vars": ["SPLUNK_URL", "SPLUNK_USERNAME", "SPLUNK_PASSWORD"],
-        "url_var": "SPLUNK_URL",
+        "required_vars": ["SPLUNK_SITE_URL", "SPLUNK_USERNAME", "SPLUNK_PASSWORD"],
+        "url_var": "SPLUNK_SITE_URL",
         "prompts": {
-            "SPLUNK_URL": {
+            "SPLUNK_SITE_URL": {
                 "label": "Splunk URL",
                 "placeholder": "https://splunk.example.com:8089",
                 "validator": "url",

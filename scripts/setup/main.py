@@ -567,7 +567,7 @@ def main():
         console.print("For non-interactive setup, set environment variables directly:")
         console.print("  CONFLUENCE_SITE_URL, CONFLUENCE_EMAIL, CONFLUENCE_API_TOKEN")
         console.print("  JIRA_SITE_URL, JIRA_EMAIL, JIRA_API_TOKEN")
-        console.print("  SPLUNK_URL, SPLUNK_USERNAME, SPLUNK_PASSWORD")
+        console.print("  SPLUNK_SITE_URL, SPLUNK_USERNAME, SPLUNK_PASSWORD")
         console.print("  GITLAB_TOKEN (optionally GITLAB_HOST for self-hosted)")
         console.print("")
         console.print("Or run setup.sh in a terminal for interactive prompts.")
