@@ -18,7 +18,7 @@ from rich import box
 
 from .credentials import collect_credentials, PLATFORM_CONFIGS
 from .validate import validate_credentials
-from .env_file import load_env_file, save_env_file, mask_value
+from .env_file import load_env_file, save_env_file, mask_value, discover_env_files
 from .plugins import (
     check_claude_cli,
     check_cli_installed,
@@ -53,16 +53,46 @@ def show_welcome():
 
 
 def detect_existing_config():
-    """Detect existing ~/.env configuration."""
-    env_vars = load_env_file(ENV_FILE)
-    configured = {}
+    """
+    Detect existing configuration from multiple sources.
 
+    Checks (in priority order):
+        1. Shell environment (os.environ)
+        2. ~/.env
+        3. as-demo/secrets/.env (sibling project)
+
+    Returns:
+        (configured, merged_env, sources) where sources is the ordered
+        list of (label, env_dict) for use in collect_credentials().
+    """
+    # Build ordered sources list
+    sources = []
+
+    # 1. Shell environment — filter to platform-relevant vars
+    platform_prefixes = ("CONFLUENCE_", "JIRA_", "SPLUNK_", "GITLAB_")
+    shell_env = {k: v for k, v in os.environ.items() if k.startswith(platform_prefixes)}
+    if shell_env:
+        sources.append(("shell", shell_env))
+
+    # 2-3. Env files on disk
+    for label, path in discover_env_files():
+        env_dict = load_env_file(path)
+        if env_dict:
+            sources.append((label, env_dict))
+
+    # Build merged view (later sources don't override earlier ones)
+    merged_env = {}
+    for _label, env_dict in reversed(sources):
+        merged_env.update(env_dict)
+
+    # Determine which platforms are fully configured
+    configured = {}
     for platform, config in PLATFORM_CONFIGS.items():
         required_vars = config["required_vars"]
-        if all(env_vars.get(var) for var in required_vars):
-            configured[platform] = {var: env_vars[var] for var in required_vars}
+        if all(merged_env.get(var) for var in required_vars):
+            configured[platform] = {var: merged_env[var] for var in required_vars}
 
-    return configured, env_vars
+    return configured, merged_env, sources
 
 
 def show_existing_config(configured: dict):
@@ -503,7 +533,7 @@ def main():
     show_welcome()
 
     # Detect existing config
-    configured, existing_env = detect_existing_config()
+    configured, existing_env, sources = detect_existing_config()
 
     # Validate existing credentials upfront
     validation_status = validate_existing_config(configured)
@@ -599,8 +629,8 @@ def main():
                     console.print("  Collecting JIRA-specific credentials...")
                     reuse_atlassian = False
 
-        # Collect credentials interactively
-        creds = collect_credentials(platform, existing_env)
+        # Collect credentials interactively (skips vars already set in sources)
+        creds = collect_credentials(platform, existing_env, sources=sources)
 
         # Validate credentials
         console.print("  Testing connection ... ", end="")
@@ -624,9 +654,15 @@ def main():
         sys.exit(1)
 
     # Prepare env vars to save
-    new_env_vars = existing_env.copy()
+    # Start from ~/.env values (preserves $(security ...) keychain patterns)
+    home_env = load_env_file(ENV_FILE)
+    new_env_vars = home_env.copy()
     for platform, creds in credentials.items():
-        new_env_vars.update(creds)
+        for key, value in creds.items():
+            # Don't overwrite existing ~/.env entries with resolved plaintext
+            # (e.g. keep $(security find-generic-password ...) patterns)
+            if key not in home_env or not home_env[key]:
+                new_env_vars[key] = value
 
     # Save to ~/.env
     console.print("[bold]Saving Configuration[/bold]")

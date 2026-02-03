@@ -12,6 +12,8 @@ from getpass import getpass
 from rich.console import Console
 from rich.prompt import Prompt
 
+from .env_file import mask_value, resolve_env_var
+
 console = Console()
 
 # Platform configuration
@@ -164,13 +166,17 @@ VALIDATORS = {
 }
 
 
-def collect_credentials(platform: str, existing_env: dict) -> dict:
+def collect_credentials(platform: str, existing_env: dict, sources: list = None) -> dict:
     """
     Collect credentials for a platform interactively.
+
+    If sources is provided, variables already set in any source are
+    skipped (displayed with source attribution) instead of prompted.
 
     Args:
         platform: Platform name (confluence, jira, splunk, gitlab)
         existing_env: Existing environment variables for defaults
+        sources: Optional ordered list of (label, env_dict) for skip-if-set logic
 
     Returns:
         Dictionary of collected credential variables
@@ -180,6 +186,20 @@ def collect_credentials(platform: str, existing_env: dict) -> dict:
 
     for var_name, prompt_config in config["prompts"].items():
         label = prompt_config["label"]
+
+        # Skip prompting if variable is already set in any source
+        if sources:
+            value, source_label = resolve_env_var(var_name, sources)
+            if value:
+                hidden = prompt_config.get("hidden", False)
+                if value.startswith("$(") and value.endswith(")"):
+                    console.print(f"  {label}: [green]****[/green] [dim](keychain via {source_label})[/dim]")
+                elif hidden:
+                    console.print(f"  {label}: [green]{mask_value(value)}[/green] [dim](from {source_label})[/dim]")
+                else:
+                    console.print(f"  {label}: [green]{value}[/green] [dim](from {source_label})[/dim]")
+                credentials[var_name] = value
+                continue
         placeholder = prompt_config.get("placeholder", "")
         validator_name = prompt_config.get("validator")
         hidden = prompt_config.get("hidden", False)
