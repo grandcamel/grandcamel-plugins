@@ -390,7 +390,7 @@ def install_python_packages(platforms: list[str]):
 
     packages = {
         "confluence": ("confluence-as", "1.1.0"),
-        "jira": ("jira-as", "1.0.0"),
+        "jira": ("jira-as", "1.1.0"),
         "splunk": ("splunk-as", "1.2.0"),
         # gitlab: no Python package needed (uses glab CLI)
     }
