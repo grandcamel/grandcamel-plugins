@@ -90,7 +90,13 @@ def detect_existing_config():
     for platform, config in PLATFORM_CONFIGS.items():
         required_vars = config["required_vars"]
         if all(merged_env.get(var) for var in required_vars):
-            configured[platform] = {var: merged_env[var] for var in required_vars}
+            # Include required vars
+            platform_config = {var: merged_env[var] for var in required_vars}
+            # Also include optional vars that are present
+            for var in config.get("optional_vars", []):
+                if merged_env.get(var):
+                    platform_config[var] = merged_env[var]
+            configured[platform] = platform_config
 
     return configured, merged_env, sources
 
