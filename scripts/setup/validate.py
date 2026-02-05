@@ -271,6 +271,27 @@ def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
         return False, f"Error: {str(e)}"
 
 
+def _normalize_gitlab_url(host: str) -> str:
+    """
+    Normalize GitLab host URL to include scheme.
+
+    Args:
+        host: GitLab host URL (may or may not include scheme)
+
+    Returns:
+        Normalized URL with scheme, defaults to https://gitlab.com if empty
+    """
+    host = host.strip().rstrip("/") if host else ""
+    if not host:
+        return "https://gitlab.com"
+
+    # Add https:// scheme if missing
+    if not host.startswith(("http://", "https://")):
+        host = f"https://{host}"
+
+    return host.rstrip("/")
+
+
 def validate_gitlab(host: str, token: str) -> tuple[bool, str]:
     """
     Validate GitLab credentials using the API directly.
@@ -278,16 +299,15 @@ def validate_gitlab(host: str, token: str) -> tuple[bool, str]:
     Uses /api/v4/user endpoint to verify token and get user info.
 
     Args:
-        host: GitLab host URL (https://gitlab.com or self-hosted)
+        host: GitLab host URL (e.g., gitlab.com, https://gitlab.example.com,
+              or https://gitlab.example.com:8443). Defaults to https://gitlab.com.
         token: Personal access token with api scope
 
     Returns:
         Tuple of (success, message)
     """
-    # Normalize host URL
-    host = host.rstrip("/") if host else ""
-    if not host:
-        host = "https://gitlab.com"
+    # Normalize host URL (add scheme if missing, default to gitlab.com)
+    host = _normalize_gitlab_url(host)
 
     # Try direct API call (works without glab CLI)
     try:
