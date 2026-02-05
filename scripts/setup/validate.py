@@ -8,7 +8,7 @@ to verify credentials are correct before saving.
 
 import base64
 import os
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import requests
 import urllib3
@@ -178,6 +178,32 @@ def _get_splunk_ssl_verify():
     return None  # Indicates "try both"
 
 
+def _normalize_splunk_url(url: str, default_port: int = 8089) -> str:
+    """
+    Normalize Splunk URL to include scheme and port.
+
+    Args:
+        url: Splunk URL (may or may not include port)
+        default_port: Default port if not specified (default: 8089)
+
+    Returns:
+        Normalized URL with scheme and port
+    """
+    # Add scheme if missing
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
+
+    parsed = urlparse(url)
+
+    # Add default port if not specified
+    if parsed.port is None:
+        # Reconstruct with port
+        netloc = f"{parsed.hostname}:{default_port}"
+        parsed = parsed._replace(netloc=netloc)
+
+    return urlunparse(parsed).rstrip("/")
+
+
 def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
     """
     Validate Splunk credentials by testing API connectivity.
@@ -188,14 +214,16 @@ def validate_splunk(url: str, username: str, password: str) -> tuple[bool, str]:
       (required for self-signed certificates without a CA cert)
 
     Args:
-        url: Splunk management URL (https://splunk:8089)
+        url: Splunk management URL (e.g., https://splunk.example.com or
+             https://splunk:8089). Port 8089 is added if not specified.
         username: Splunk username
         password: Splunk password
 
     Returns:
         Tuple of (success, message)
     """
-    api_url = urljoin(url + "/", "services/auth/login")
+    normalized_url = _normalize_splunk_url(url)
+    api_url = f"{normalized_url}/services/auth/login"
     request_data = {
         "username": username,
         "password": password,
