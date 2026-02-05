@@ -15,7 +15,85 @@ NC='\033[0m' # No Color
 # Script directory (where as-plugins is cloned)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-VENV_DIR="$REPO_DIR/.venv"
+
+# Detect if virtualenv activation exists in a file
+check_venv_in_file() {
+    local file="$1"
+    [[ -f "$file" ]] && grep -q "as-plugins-venv" "$file"
+}
+
+# Find existing as-plugins venv configuration
+# Returns: "active:<path>" | "file:<config_file_path>" | exits with 1 if not found
+detect_existing_venv() {
+    # 1. Active venv
+    if [[ -n "$VIRTUAL_ENV" && "$VIRTUAL_ENV" == *"as-plugins"* ]]; then
+        echo "active:$VIRTUAL_ENV"
+        return 0
+    fi
+
+    # 2-3. Check .d directories
+    for rc_d in "$HOME/.bashrc.d/50-as-plugins.sh" "$HOME/.zshrc.d/50-as-plugins.sh"; do
+        if check_venv_in_file "$rc_d"; then
+            echo "file:$rc_d"
+            return 0
+        fi
+    done
+
+    # 4-5. Check rc files directly
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        if check_venv_in_file "$rc"; then
+            echo "file:$rc"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# Extract venv path from a config file
+extract_venv_path_from_file() {
+    local file="$1"
+    # Look for: source "/path/to/as-plugins-venv/bin/activate" or source '/path/...' or source path/...
+    grep -oE '(source|\.)[[:space:]]+["'"'"']?[^"'"'"'[:space:]]*as-plugins-venv[^"'"'"'[:space:]]*["'"'"']?' "$file" 2>/dev/null | \
+        sed -E 's/(source|\.)//; s/[[:space:]]+//g; s/["'"'"']//g; s|/bin/activate||' | \
+        head -1
+}
+
+# Configure shell activation for new venv
+configure_shell_activation() {
+    local venv_dir="$1"
+    local activation_line="source \"$venv_dir/bin/activate\""
+    local configured=false
+
+    # Prefer .d directories if they exist
+    if [[ -d "$HOME/.bashrc.d" ]]; then
+        echo "$activation_line" > "$HOME/.bashrc.d/50-as-plugins.sh"
+        echo -e "${GREEN}  ✓ Created ~/.bashrc.d/50-as-plugins.sh${NC}"
+        configured=true
+    fi
+
+    if [[ -d "$HOME/.zshrc.d" ]]; then
+        echo "$activation_line" > "$HOME/.zshrc.d/50-as-plugins.sh"
+        echo -e "${GREEN}  ✓ Created ~/.zshrc.d/50-as-plugins.sh${NC}"
+        configured=true
+    fi
+
+    # Fallback: append to rc files if no .d directories used
+    if [[ "$configured" != "true" ]]; then
+        if [[ -f "$HOME/.bashrc" ]]; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# AS-Plugins virtualenv" >> "$HOME/.bashrc"
+            echo "$activation_line" >> "$HOME/.bashrc"
+            echo -e "${GREEN}  ✓ Added activation to ~/.bashrc${NC}"
+        fi
+        if [[ -f "$HOME/.zshrc" ]]; then
+            echo "" >> "$HOME/.zshrc"
+            echo "# AS-Plugins virtualenv" >> "$HOME/.zshrc"
+            echo "$activation_line" >> "$HOME/.zshrc"
+            echo -e "${GREEN}  ✓ Added activation to ~/.zshrc${NC}"
+        fi
+    fi
+}
 
 # Parse arguments
 FORCE=false
@@ -109,29 +187,68 @@ else
     SKIP_PLUGINS=true
 fi
 
-# Create or recreate virtual environment
-if [[ -d "$VENV_DIR" && "$FORCE" != "true" ]]; then
-    echo ""
-    echo -e "${YELLOW}Virtual environment already exists at $VENV_DIR${NC}"
-    read -p "Recreate it? [y/N]: " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -rf "$VENV_DIR"
+# Detect existing virtualenv configuration
+echo ""
+echo "Detecting virtualenv configuration..."
+VENV_SOURCE=""
+VENV_DIR=""
+
+if VENV_RESULT=$(detect_existing_venv); then
+    VENV_SOURCE="${VENV_RESULT%%:*}"
+    VENV_LOCATION="${VENV_RESULT#*:}"
+
+    if [[ "$VENV_SOURCE" == "active" ]]; then
+        VENV_DIR="$VENV_LOCATION"
+        echo -e "${GREEN}  ✓ Using active virtualenv: $VENV_DIR${NC}"
+    else
+        # Extract venv path from the file
+        VENV_DIR=$(extract_venv_path_from_file "$VENV_LOCATION")
+        if [[ -n "$VENV_DIR" ]]; then
+            echo -e "${GREEN}  ✓ Found existing venv config in: $VENV_LOCATION${NC}"
+            echo -e "${GREEN}    Venv path: $VENV_DIR${NC}"
+        else
+            echo -e "${YELLOW}  ! Could not extract venv path from $VENV_LOCATION${NC}"
+            VENV_DIR="$HOME/.as-plugins-venv"
+        fi
     fi
+else
+    VENV_DIR="$HOME/.as-plugins-venv"
+    echo -e "${YELLOW}  No existing virtualenv found, will create at $VENV_DIR${NC}"
 fi
 
-if [[ ! -d "$VENV_DIR" ]]; then
+# Create venv if needed (unless using active venv)
+if [[ "$VENV_SOURCE" != "active" ]]; then
+    if [[ -d "$VENV_DIR" && "$FORCE" != "true" ]]; then
+        echo ""
+        echo -e "${YELLOW}Virtual environment exists at $VENV_DIR${NC}"
+        read -p "Recreate it? [y/N]: " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -rf "$VENV_DIR"
+        fi
+    fi
+
+    if [[ ! -d "$VENV_DIR" ]]; then
+        echo ""
+        echo "Creating Python virtual environment..."
+        python3 -m venv "$VENV_DIR"
+        echo -e "${GREEN}  ✓ Created $VENV_DIR${NC}"
+
+        # Configure shell activation for new venv
+        configure_shell_activation "$VENV_DIR"
+    fi
+
+    # Activate the venv
     echo ""
-    echo "Creating Python virtual environment..."
-    python3 -m venv "$VENV_DIR"
-    echo -e "${GREEN}  ✓ Created $VENV_DIR${NC}"
+    echo "Activating virtualenv..."
+    # shellcheck disable=SC1091
+    source "$VENV_DIR/bin/activate"
+    echo -e "${GREEN}  ✓ Activated $VENV_DIR${NC}"
 fi
 
-# Activate and install base dependencies
+# Install base dependencies
 echo ""
 echo "Installing base dependencies..."
-# shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
 
 # Upgrade pip and install wheel
 pip install --upgrade pip wheel > /dev/null 2>&1
